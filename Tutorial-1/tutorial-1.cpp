@@ -1,6 +1,6 @@
 ///
 /// @file
-/// This is a simple, sychronous wget immplementation. It accepts a URL as its one parameter,
+/// This is a simple, sychronous wget implementation. It accepts a URL as its one parameter,
 /// connects to it, downloads the page via synchronous HTTP, and prints it to stdout.
 ///
 /// @note   The meat of this tutorial is in the requestPage method.
@@ -163,7 +163,7 @@ string checkArgs( const int argc, char* argv[] ){
 }
 
 int main( int argc, char* argv[] ){
-    string url = checkArgs( argc, argv );
+    const string& url = checkArgs( argc, argv );
     requestPage( url, cout );
     return SUCCESS;
 }
