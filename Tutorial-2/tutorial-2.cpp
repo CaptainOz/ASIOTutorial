@@ -20,6 +20,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 using namespace std;
 
@@ -37,7 +40,7 @@ enum ErrorCodes {
 
 const unsigned short HTTP_PORT = 80;
 
-string generateResponse( stringstream& request );
+string generateResponse( const string& pathToRoot, stringstream& request );
 
 void runServer( const string& pathToRoot ){
     // Every ASIO application needs at least one of these.
@@ -98,7 +101,7 @@ void runServer( const string& pathToRoot ){
         // handle that for us. We are guaranteed at the end of of `boost::asio::write` that every
         // byte has been sent.
         try {
-            const string& response = generateResponse( request );
+            const string& response = generateResponse( pathToRoot, request );
             boost::asio::write( socket, boost::asio::buffer( response ) );
         }
         catch( boost::system::system_error& error ){
@@ -151,7 +154,7 @@ string parseRequest( stringstream& request ){
 
     // We know it is a get, so extract the file name.
     int httpStart = method.find( " HTTP" );
-    return method.substr( 4, httpStart );
+    return method.substr( 4, httpStart - 4 );
 }
 
 string generate404Response( void ){
@@ -161,19 +164,20 @@ string generate404Response( void ){
         "\r\n";
 }
 
-string generateResponse( stringstream& request ){
+string generateResponse( const string& pathToRoot, stringstream& request ){
     // Get the filename from the request and open it.
-    const string& filename = parseRequest( request );
-    ifstream file;
-    try {
-        file.open( filename.c_str() );
-    }
-    catch( exception& error ){
-        cerr << "Failed to open " << filename << ": " << error.what() << endl;
+    const string& filename = pathToRoot + parseRequest( request );
+    ifstream file( filename.c_str() );
+    if( !file ){
         return generate404Response();
     }
-
     size_t filesize = 0;
+
+    {
+        struct stat filestatus;
+        stat( filename.c_str(), &filestatus );
+        filesize = filestatus.st_size;
+    }
 
     // Now generate the header.
     stringstream response;
@@ -182,8 +186,8 @@ string generateResponse( stringstream& request ){
         << "X-Powered-By: Boost ASIO\r\n"
         << "Connection: close\r\n"
         << "Content-Length: " << filesize << "\r\n"
-        << "\r\n"
-        << file;
+        << "\r\n";
+    file >> response.rdbuf();
     return response.str();
 }
 
