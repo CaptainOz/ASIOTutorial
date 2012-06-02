@@ -1,6 +1,6 @@
 
 Tutorial 3: Asynchrnous wget
-=======================
+============================
 
 This tutorial creates a simple application that connects to a URL provided on the command line,
 downloads the page via HTTP asynchronously, and prints it to `stdout`. The application will still be
