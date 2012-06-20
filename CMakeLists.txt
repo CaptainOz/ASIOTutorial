@@ -1,6 +1,11 @@
 
 cmake_minimum_required( VERSION 2.6 )
 
+set( BOOST_INCLUDE_PATH /usr/local/include CACHE PATH "Path to Boost include directory." )
+include_directories( ${BOOST_INCLUDE_PATH} )
+
+set( BOOST_LIB_PATH /usr/local/lib CACHE PATH "Path to Boost libraries directory." )
+
 set( BOOST_ASIO_PACKAGES
     boost_system
     pthread
