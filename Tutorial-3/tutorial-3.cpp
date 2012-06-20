@@ -1,6 +1,6 @@
 ///
 /// @file
-/// This is a simple, saychronous wget implementation. It accepts a URL as its one parameter,
+/// This is a simple, asychronous wget implementation. It accepts a URL as its one parameter,
 /// connects to it, downloads the page via asynchronous HTTP, and prints it to stdout.
 ///
 /// @note   The meat of this tutorial is in the requestPage method.
@@ -45,7 +45,7 @@ boost::asio::io_service io_service;
 // We will be passing the data around between the asynchronous functions, so we will be using a
 // shared pointer to manage destruction for us when the data becomes unused.
 typedef boost::shared_ptr< tcp::socket >                socket_ptr;
-typedef boost::shared_ptr< string>                      string_ptr;
+typedef boost::shared_ptr< string >                     string_ptr;
 typedef boost::shared_ptr< boost::array< char, 1024 > > array_ptr;
 
 void resolveHandler(
