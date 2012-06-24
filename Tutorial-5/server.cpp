@@ -22,6 +22,12 @@ enum ErrorCodes {
     BAD_ARGUMENTS
 };
 
+void getBytes( istream& stream, const size_t count, string& out ){
+    for( size_t i = 0; i < count && stream.good(); ++i ){
+        out += (char)stream.get();
+    }
+}
+
 // ************************************************************************** //
 
 class ByteLimit {
@@ -77,10 +83,10 @@ private:
 
         // The first 4 bytes contains the name of the command. This is followed by an integer which
         // gives the size of the data to follow.
-        string command( COMMAND_LENGTH, '\0' );
-        string dataSizeStr( sizeof( int ), '\0' );
-        data.get( &command.at( 0 ), COMMAND_LENGTH + 1 );
-        data.get( &dataSizeStr.at( 0 ), sizeof( int ) + 1 );
+        string command;
+        string dataSizeStr;
+        getBytes( data, COMMAND_LENGTH, command );
+        getBytes( data, sizeof( int ), dataSizeStr );
         unsigned int dataSize = (unsigned int)ntohl( *(int*)dataSizeStr.data() );
 
         // If we have more data to read, do that next.
@@ -215,7 +221,7 @@ private:
         const string& data
     ){
         if( error ){
-            cerr << "Client connection error: " << error.message() << endl;
+            cerr << "Read command error: " << error.message() << endl;
             client->close();
             m_clientList.remove( client );
             return;

@@ -8,6 +8,7 @@
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
 #include <boost/smart_ptr.hpp>
+#include <exception>
 #include <string>
 
 using namespace std;
@@ -154,8 +155,13 @@ public:
 
     void close( void ){
         if( m_socket.is_open() ){
-            m_socket.shutdown( tcp::socket::shutdown_both );
-            m_socket.close();
+            try {
+                m_socket.shutdown( tcp::socket::shutdown_both );
+                m_socket.close();
+            }
+            catch( const std::exception& e ){
+                cerr << "Exception while closing socket: " << e.what() << endl;
+            }
         }
     }
 };
