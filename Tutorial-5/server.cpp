@@ -31,11 +31,13 @@ private:
 public:
     template< typename Iterator >
     pair< Iterator, bool > operator()( Iterator begin, Iterator end ) const {
-        return make_pair( begin, (end - begin) < m_limit );
+        return make_pair( begin, (end - begin) >= m_limit );
     }
 
-    explicit ByteLimit( const size_t limit ) : m_limit( limit ){}
-    ByteLimit( const ByteLimit& other ) : m_limit( other.m_limit ){}
+    explicit ByteLimit( const size_t limit, const size_t preRead = 0 )
+        : m_limit( limit ){}
+    ByteLimit( const ByteLimit& other )
+        : m_limit( other.m_limit ){}
     ~ByteLimit( void ){}
 }; // end class ByteLimit
 
@@ -68,15 +70,18 @@ private:
     Connection::Pointer m_connection;
     string m_clientName;
 
-    void _headerHandler( const error_code& error, const string& data, MessageHandler handler ){
+    void _headerHandler( const error_code& error, istream& data, MessageHandler handler ){
         if( error ){
             handler( error, "", "" );
         }
 
         // The first 4 bytes contains the name of the command. This is followed by an integer which
         // gives the size of the data to follow.
-        string command = data.substr( 0, COMMAND_LENGTH );
-        unsigned int dataSize = (unsigned int)ntohl( *(int*)data.substr( COMMAND_LENGTH ).data() );
+        string command( COMMAND_LENGTH, '\0' );
+        string dataSizeStr( sizeof( int ), '\0' );
+        data.get( &command.at( 0 ), COMMAND_LENGTH + 1 );
+        data.get( &dataSizeStr.at( 0 ), sizeof( int ) + 1 );
+        unsigned int dataSize = (unsigned int)ntohl( *(int*)dataSizeStr.data() );
 
         // If we have more data to read, do that next.
         if( dataSize ){
@@ -88,6 +93,7 @@ private:
                     Connection::placeholders::error,
                     Connection::placeholders::data,
                     command,
+                    dataSize,
                     handler
                 )
             );
@@ -101,19 +107,21 @@ private:
 
     void _dataHandler(
         const error_code& error,
-        const string& data,
+              istream& stream,
         const string& command, 
+        const size_t dataSize,
         MessageHandler handler
     ){
         // Nothing more to do but callback.
+        string data( dataSize, ' ' );
+        stream.get( &data.at( 0 ), dataSize + 1 );
         handler( error, command, data );
     }
 
 public:
     ClientConnection( Connection::Pointer& connection, const string& clientName )
         : m_connection( connection ),
-          m_clientName( clientName ){
-    }
+          m_clientName( clientName ){}
 
     void readMessage( MessageHandler handler ){
         m_connection->readUntil(
@@ -150,7 +158,7 @@ public:
 
 class Server {
 public:
-    static const unsigned short CHAT_PORT   = 8888;
+    static const unsigned short CHAT_PORT = 8888;
     static const string&        DEFAULT_NAME;
 
 private:
@@ -208,14 +216,12 @@ private:
     ){
         if( error ){
             cerr << "Client connection error: " << error.message() << endl;
+            client->close();
             m_clientList.remove( client );
             return;
         }
 
-        // Immediately set up the next read.
-        _readMessage( client );
-
-        // Then handle the command we just received.
+        // Handle the command we just received.
         if( command == "name" ){
             _nameHandler( client, data );
         }
@@ -228,6 +234,9 @@ private:
         else {
             _unknownCommandHandler( client, command );
         }
+
+        // Then set up the next read.
+        _readMessage( client );
     }
 
     void _nameHandler( ClientConnection::Pointer client, const string& data ){
@@ -237,7 +246,7 @@ private:
     void _chatHandler( ClientConnection::Pointer client, const string& data ){
         // NOTE We only need one message to share with all of the clients. The shared pointer will
         //      handle deallocating it for us once the last write has finished.
-        Connection::WriteBuffer message( new string( client->getName() + ": " + data ) );
+        Connection::WriteBuffer message( new string( client->getName() + ": " + data + "\n" ) );
         for( client_list::iterator it = m_clientList.begin(); it != m_clientList.end(); ++it ){
             // Don't broadcast the message to the one who sent it.
             if( *it != client ){

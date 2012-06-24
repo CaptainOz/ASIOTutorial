@@ -19,9 +19,6 @@ using boost::asio::ip::tcp;
 /// completion.
 class Connection : public boost::enable_shared_from_this< Connection > {
 public:
-    /// Buffer for handling variable-length reading off the socket.
-    typedef boost::shared_ptr< boost::asio::streambuf > ReadBuffer;
-
     /// Buffer for holding a message to be written to the socket.
     typedef boost::shared_ptr< string > WriteBuffer;
 
@@ -32,7 +29,7 @@ public:
     typedef boost::system::error_code Error;
 
     /// Function prototype for read handlers.
-    typedef boost::function< void( const Error&, const string& ) > ReadCallback;
+    typedef boost::function< void( const Error&, istream& ) > ReadCallback;
 
     /// Function prototype for write handlers.
     typedef boost::function< void( const Error&, const size_t ) > WriteCallback;
@@ -44,7 +41,8 @@ public:
     }; // end struct placeholders
 
 private:
-    tcp::socket m_socket;   ///< Boost::ASIO socket handle.
+    tcp::socket             m_socket;       ///< Boost::ASIO socket handle.
+    boost::asio::streambuf  m_readBuffer;   ///< Read buffer.
 
     /// Internal read complete handler.
     ///
@@ -55,17 +53,11 @@ private:
     void _readHandler(
         const Error& error,
         size_t bytesRead,
-        ReadBuffer& buffer,
         ReadCallback& callback
     ){
-        if( error ){
-            callback( error, "" );
-        }
-        else {
-            istream stream( buffer.get() );
-            stringstream data;
-            stream >> data.rdbuf();
-            callback( error, data.str() );
+        if( callback != NULL ){
+            istream stream( &m_readBuffer );
+            callback( error, stream );
         }
     }
 
@@ -81,7 +73,9 @@ private:
         WriteBuffer& buffer,
         WriteCallback& callback
     ){
-        callback( error, bytesWritten );
+        if( callback != NULL ){
+            callback( error, bytesWritten );
+        }
     }
 
     void _write( WriteBuffer buffer, WriteCallback& callback ){
@@ -118,17 +112,15 @@ public:
     /// @param callback
     template< typename Condition >
     void readUntil( Condition condition, ReadCallback callback ){
-        ReadBuffer buffer( new boost::asio::streambuf() );
         boost::asio::async_read_until(
             m_socket,
-            *buffer,
+            m_readBuffer,
             condition,
             boost::bind(
                 &Connection::_readHandler,
                 shared_from_this(),
                 boost::asio::placeholders::error,
                 boost::asio::placeholders::bytes_transferred,
-                buffer,
                 callback
             )
         );

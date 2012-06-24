@@ -9,6 +9,7 @@ link_directories( ${BOOST_LIB_PATH} )
 
 set( BOOST_ASIO_PACKAGES
     boost_system
+    boost_thread
     pthread
 )
 

@@ -1,9 +1,11 @@
 
 set( TUT5_SERVER_SOURCE
+    connection.h
     server.cpp
 )
 
 set( TUT5_CLIENT_SOURCE
+    connection.h
     client.cpp
 )
 
